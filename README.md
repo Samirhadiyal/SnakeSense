@@ -13,6 +13,7 @@ A production oriented AI engineering project that combines Computer Vision, Retr
 ## Technologies
 
 - Python
+- APIs
 - PyTorch
 - OpenCV
 - FastAPI
