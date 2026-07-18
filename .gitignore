@@ -2,6 +2,7 @@ SnakeDetection.v9i.tensorflow/
 Filtered_Train/
 details.txt
 data/raw/
+data/Processed_Train/images
 
 models/*.pth
 models/*.pt
