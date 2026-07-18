@@ -1,3 +1,10 @@
 SnakeDetection.v9i.tensorflow/
 Filtered_Train/
 details.txt
+data/raw/
+
+models/*.pth
+models/*.pt
+
+# VS Code
+.vscode/
