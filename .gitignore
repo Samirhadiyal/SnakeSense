@@ -6,6 +6,7 @@ data/Processed_Train/images
 
 models/*.pth
 models/*.pt
+models/
 
 # VS Code
 .vscode/
