@@ -3,6 +3,8 @@ Filtered_Train/
 details.txt
 data/raw/
 data/Processed_Train/images
+inference.ipynb
+data/Processed_Images
 
 models/*.pth
 models/*.pt
