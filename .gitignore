@@ -5,6 +5,7 @@ data/raw/
 data/Processed_Train/images
 inference.ipynb
 data/Processed_Images
+checkpoints/
 
 models/*.pth
 models/*.pt
