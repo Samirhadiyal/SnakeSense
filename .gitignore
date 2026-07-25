@@ -6,7 +6,7 @@ data/Processed_Train/images
 inference.ipynb
 data/Processed_Images
 checkpoints/
-
+best_model.pth
 models/*.pth
 models/*.pt
 models/
