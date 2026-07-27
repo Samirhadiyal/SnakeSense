@@ -12,8 +12,9 @@ from torchvision.models import efficientnet_b0
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.schemas import PredictionResponse, SpeciesPrediction, TriageRequest, TriageResponse
+from app.schemas import PredictionResponse, SpeciesPrediction, TriageRequest, TriageResponse, ChatRequest, ChatResponse
 from app.species_db import get_species_info
+from app.rag_engine import index_knowledge_base, generate_rag_answer
 
 # Global variables
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -69,7 +70,8 @@ async def lifespan(app: FastAPI):
         print(f"==================================================")
     else:
         raise FileNotFoundError(f"Model checkpoint missing at {checkpoint_path}")
-        
+    
+    index_knowledge_base()
     yield
     
     # Clean up on shutdown
@@ -188,4 +190,21 @@ def clinical_triage(request: TriageRequest):
             "donts": donts
         },
         emergency_contacts=["108 (Emergency Ambulance)", "112 (National Emergency Response)"]
+    )
+    
+@app.post("/chat", response_model=ChatResponse)
+async def chat_with_assistant(request: ChatRequest):
+    if not request.query.strip():
+        raise HTTPException(status_code=400, detail="Query cannot be empty.")
+
+    answer = generate_rag_answer(
+        user_query=request.query,
+        species_context=request.species_context,
+        language=request.language or "English"
+    )
+
+    return ChatResponse(
+        query=request.query,
+        answer=answer,
+        language=request.language or "English"
     )

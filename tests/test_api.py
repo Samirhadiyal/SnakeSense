@@ -51,3 +51,16 @@ def test_predict_endpoint_valid_image(client):
     assert data["status"] == "success"
     assert len(data["top_predictions"]) == 3
     assert "safety_disclaimer" in data
+    
+def test_chat_endpoint(client):
+    payload = {
+        "query": "Is a Common Krait active at night?",
+        "species_context": "Bungarus caeruleus",
+        "language": "English"
+    }
+    response = client.post("/chat", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert "query" in data
+    assert "answer" in data
+    assert len(data["answer"]) > 10
