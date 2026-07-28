@@ -7,7 +7,7 @@ filtered_annotations.csv
 secrets.json
 api_keys.json
 
-chroma_db
+chroma_db/
 
 checkpoints/
 *.pth
