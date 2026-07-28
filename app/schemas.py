@@ -31,3 +31,13 @@ class TriageResponse(BaseModel):
     suspected_toxicity: str
     action_protocol: dict
     emergency_contacts: List[str]
+    
+class ChatRequest(BaseModel):
+    query: str
+    species_context: Optional[str] = ""
+    language: Optional[str] = "English"
+
+class ChatResponse(BaseModel):
+    query: str
+    answer: str
+    language: str

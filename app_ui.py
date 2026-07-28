@@ -23,7 +23,7 @@ lang = st.sidebar.selectbox("Select Language", ["English", "Hindi (हिंद�
 lang_code = "hi" if lang == "Hindi (हिंदी)" else ("gu" if lang == "Gujarati (ગુજરાતી)" else "en")
 
 # Navigation Tabs
-tab1, tab2 = st.tabs(["📷 Snake Species Identification", "🚨 Bite Emergency Triage"])
+tab1, tab2, tab3 = st.tabs(["📷 Snake Species Identification", "🚨 Bite Emergency Triage", "💬 Chat with our Assistant"])
 
 # --- TAB 1: SPECIES IDENTIFICATION ---
 with tab1:
@@ -131,3 +131,44 @@ with tab2:
                 st.info(f"📞 **Emergency Contacts:** {', '.join(triage['emergency_contacts'])}")
         except Exception as e:
             st.error(f"Error connecting to triage API: {e}")
+            
+# --- TAB 3: AI ASSISTANT ---
+with tab3:
+    st.header("💬 SnakeSense AI Assistant")
+    st.caption("Ask questions about snake species, habitats, nocturnal habits, or emergency first-aid protocols. Answers are strictly grounded in WHO & NCDC guidelines.")
+    
+    # Active vision context banner if user uploaded an image in Tab 1
+    active_context = st.session_state.get("active_species_context", "No active photo uploaded in current session.")
+    st.info(f"🔍 **Active Vision Context:** {active_context}")
+    
+    # User input query
+    user_query = st.text_input(
+        "Enter your question:", 
+        placeholder="e.g., What should I do if bitten by a Common Krait at night?"
+    )
+    
+    col_ask, col_clear = st.columns([1, 4])
+    with col_ask:
+        ask_submitted = st.button("Ask Assistant", type="primary", use_container_width=True)
+    
+    if ask_submitted:
+        if not user_query.strip():
+            st.warning("Please type a question before submitting.")
+        else:
+            with st.spinner("Searching knowledge base & generating grounded response..."):
+                try:
+                    payload = {
+                        "query": user_query,
+                        "species_context": active_context,
+                        "language": lang  # Uses the language selected in your UI sidebar/header
+                    }
+                    response = requests.post("http://127.0.0.1:8000/chat", json=payload)
+                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        st.markdown("### 🤖 Assistant Answer")
+                        st.markdown(data["answer"])
+                    else:
+                        st.error(f"API Error ({response.status_code}): {response.text}")
+                except Exception as e:
+                    st.error(f"Could not connect to FastAPI server at http://127.0.0.1:8000/chat. Error: {e}")
