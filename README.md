@@ -462,6 +462,17 @@ pytest tests/ -v
 > [!NOTE]
 > The `answer` field above is an illustrative example of the response shape, not a verbatim transcript of `rag_engine.generate_rag_answer()` output — actual answers are generated dynamically from the indexed knowledge base at query time.
 
+**Output**
+<img width="1535" height="864" alt="appui" src="https://github.com/user-attachments/assets/50b2f06f-b67a-41de-bbea-3cea5a8f2c3e" /> <br> <br> 
+<img width="1536" height="864" alt="Screenshot 2026-07-28 151101" src="https://github.com/user-attachments/assets/ad21f316-0281-4c10-a108-e869708527f2" /> <br> <br>
+<img width="1536" height="863" alt="WhatsApp Image 2026-07-28 at 3 11 17 PM" src="https://github.com/user-attachments/assets/859c1658-d63f-401c-b979-a09a1cfb61cf" /> <br> <br>
+<img width="1536" height="864" alt="Screenshot 2026-07-28 142019" src="https://github.com/user-attachments/assets/00e3aec8-ba60-458e-adb3-7b9f5bf65543" /> <br> <br>
+<img width="1536" height="864" alt="Screenshot 2026-07-28 142254" src="https://github.com/user-attachments/assets/d2c84190-9180-4a0a-83e5-8c9c8da5832f" /> <br> <br>
+<img width="1536" height="864" alt="Screenshot 2026-07-28 142227" src="https://github.com/user-attachments/assets/3fe709dd-1587-46ad-89fc-33fc754bbaf0" /> <br> <br>
+
+
+
+
 
 ---
 
