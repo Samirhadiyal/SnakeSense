@@ -22,13 +22,13 @@
 
 ---
 
-## Executive Summary
-
-Snakebite envenoming is a WHO-recognized Neglected Tropical Disease, and India carries one of the highest snakebite mortality burdens in the world, with rural and semi-urban populations facing the compounded problem of misidentifying species in the field and delaying — or mismanaging — first response. Most existing tools address only one half of this problem: either a visual species classifier with no actionable guidance, or a static first-aid pamphlet with no adaptive intelligence. **SnakeSense** is built to close that gap by fusing computer vision, structured clinical logic, and retrieval-grounded language generation into a single, safety-first pipeline.
-
-The system is engineered as three cooperating subsystems behind one FastAPI backend: an **EfficientNet-B0** image classifier fine-tuned to distinguish 15 snake species relevant to the Indian subcontinent, returning ranked predictions enriched with toxicity classification, venom type, and localized common names in English, Hindi, and Gujarati; a **rule-based clinical triage engine** that converts a symptom questionnaire into a WHO/NCDC-aligned urgency classification (`CRITICAL` / `HIGH` / `LOW`) with explicit do's-and-don'ts action protocols; and a **Retrieval-Augmented Generation (RAG) assistant**, built on ChromaDB, that answers free-text questions about species behavior and emergency response strictly grounded in indexed, verified wildlife and medical knowledge — engineered to avoid hallucinated clinical claims.
-
-The engineering intent throughout is *safety-first, not confidence-first*: predictions below a 40% confidence threshold are explicitly flagged as low-confidence/ambiguous rather than silently presented as certain, every `/predict` response carries a mandatory non-diagnostic disclaimer, and the triage logic is deliberately conservative — deferring to `CRITICAL` classification whenever neurotoxic or haemotoxic red-flag symptoms (ptosis, respiratory difficulty, spontaneous bleeding) are present. The result is a project that demonstrates production-style ML engineering (checkpoint-driven model loading, typed request/response schemas, lifespan-managed startup, CORS-enabled multi-client access) applied to a domain where getting the interface right matters as much as getting the model right.
+**Output**
+<img width="1535" height="864" alt="appui" src="https://github.com/user-attachments/assets/50b2f06f-b67a-41de-bbea-3cea5a8f2c3e" /> <br> <br> 
+<img width="1536" height="864" alt="Screenshot 2026-07-28 151101" src="https://github.com/user-attachments/assets/ad21f316-0281-4c10-a108-e869708527f2" /> <br> <br>
+<img width="1536" height="863" alt="WhatsApp Image 2026-07-28 at 3 11 17 PM" src="https://github.com/user-attachments/assets/859c1658-d63f-401c-b979-a09a1cfb61cf" /> <br> <br>
+<img width="1536" height="864" alt="Screenshot 2026-07-28 142019" src="https://github.com/user-attachments/assets/00e3aec8-ba60-458e-adb3-7b9f5bf65543" /> <br> <br>
+<img width="1536" height="864" alt="Screenshot 2026-07-28 142254" src="https://github.com/user-attachments/assets/d2c84190-9180-4a0a-83e5-8c9c8da5832f" /> <br> <br>
+<img width="1536" height="864" alt="Screenshot 2026-07-28 142227" src="https://github.com/user-attachments/assets/3fe709dd-1587-46ad-89fc-33fc754bbaf0" /> <br> <br>
 
 ---
 
@@ -162,36 +162,6 @@ sequenceDiagram
 
 ---
 
-## Machine Learning & Engineering Deep Dive
-
-### Model Architecture
-
-The deployed classifier is a **EfficientNet-B0** (`torchvision.models.efficientnet_b0`), instantiated with `weights=None` (trained from scratch on the project's own dataset rather than fine-tuned from ImageNet weights in the deployed loader) and re-headed for the task: the final classifier layer's `in_features` is extracted and replaced with a fresh `nn.Linear(num_features, num_classes)` sized to the 15 registered species. Trained weights are restored from a checkpoint at `checkpoints/best_model.pth`, with the loader handling both raw state-dict checkpoints and dictionary-wrapped checkpoints (`checkpoint["model_state_dict"]`) for flexibility across training run formats.
-
-### Preprocessing Contract
-
-Inference-time preprocessing is defined as a fixed `torchvision.transforms.Compose` pipeline, deliberately kept identical to the validation-time transform used during training:
-
-```python
-eval_transform = transforms.Compose([
-    transforms.Resize((256, 256)),
-    transforms.CenterCrop((224, 224)),
-    transforms.ToTensor(),
-    transforms.Normalize(
-        mean=[0.485, 0.456, 0.406],
-        std=[0.229, 0.224, 0.225]
-    )
-])
-```
-
-### Class Mapping & Species Metadata
-
-The 15-class label space is externalized to `models/class_mapping.json`, loaded and cast to an `int → str` mapping at startup. Each predicted class index is resolved to a scientific name, which is then enriched via `species_db.get_species_info()` — returning `common_name`, `local_names` (a dict keyed by language code for English/Hindi/Gujarati), `toxicity_status`, `venom_type`, and an `is_big_four` flag (referencing India's "Big Four" medically significant venomous species: Indian cobra, common krait, Russell's viper, and saw-scaled viper).
-
-### Confidence Calibration & Low-Confidence Safeguard
-
-Raw logits are converted to probabilities via `torch.softmax`, and the top-3 classes are extracted via `torch.topk`. Critically, the system does not treat the top-1 prediction as ground truth by default — if the top prediction's confidence falls below **40%**, the response sets `is_low_confidence = True`, which the UI surfaces as an explicit warning: *"The image may be blurry or ambiguous. Treat as potentially venomous."* This is a deliberate fail-safe bias — under identification uncertainty, the system defaults toward caution rather than false reassurance.
-
 ### Logged Performance Metrics
 
 | Metric | Value | Notes |
@@ -202,21 +172,6 @@ Raw logits are converted to probabilities via `torch.softmax`, and the top-3 cla
 | **Classes Registered** | **15 species** | Indices `0`–`14`, sourced from `class_mapping.json` |
 | **Per-Species Precision / Recall** | *Not logged* | Not recorded in the training run logs — flagged here rather than estimated |
 | **Confusion Matrix** | *Not logged* | Full per-class confusion matrix was not captured during this training run |
-
-
-### Clinical Triage Logic
-
-The `/triage` endpoint implements a fully deterministic decision tree — no model inference occurs on this path. Given a `bitten` flag and four boolean symptom fields (`local_swelling`, `drooping_eyelids`, `difficulty_breathing`, `spontaneous_bleeding`) plus `time_elapsed_minutes`, urgency is classified as follows:
-
-- If `bitten` is `False` → `urgency_level = "LOW"`, no bite reported, maintain safe distance.
-- If any of `drooping_eyelids`, `difficulty_breathing`, or `spontaneous_bleeding` is `True` → `urgency_level = "CRITICAL"`, `suspected_toxicity = "Systemic Envenoming (Neurotoxic / Haemotoxic)"`.
-- Otherwise (bitten, but none of the critical red-flag symptoms present) → `urgency_level = "HIGH"`, `suspected_toxicity = "Potential Local Envenoming"`.
-
-Every triage response returns a structured `action_protocol` with an `immediate_action` string, a `dos` list (immobilize the limb, remove restrictive jewelry, transport to a facility with antivenom/ICU access), and a `donts` list (no incision, no suction, no tourniquet, no herbal remedies or ice, no alcohol/caffeine/analgesics) — directly reflecting standard WHO/NCDC snakebite first-aid guidance.
-
-### RAG Assistant Design
-
-The `/chat` endpoint delegates to `generate_rag_answer(user_query, species_context, language)` in `app/rag_engine.py`. The knowledge base is indexed once at application startup via `index_knowledge_base()` inside the FastAPI `lifespan` handler, backed by ChromaDB as the vector store. The assistant accepts an optional `species_context` string — populated automatically by the UI from the most recently identified species in the session — allowing follow-up questions like *"is this one dangerous at night?"* to resolve without the user re-stating which snake they mean.
 
 ---
 
@@ -287,12 +242,6 @@ venv\Scripts\activate           # Windows
 
 # 3. Install dependencies
 pip install torch torchvision fastapi uvicorn streamlit pillow chromadb pydantic pytest
-
-# 4. Ensure model artifacts are present
-#    - checkpoints/best_model.pth   (trained EfficientNet-B0 weights)
-#    - models/class_mapping.json    (15-class label mapping)
-#    Generate these by running snakesense.ipynb end-to-end, or place
-#    pre-trained artifacts in these exact paths.
 
 # 5. Start the FastAPI backend
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
@@ -462,13 +411,7 @@ pytest tests/ -v
 > [!NOTE]
 > The `answer` field above is an illustrative example of the response shape, not a verbatim transcript of `rag_engine.generate_rag_answer()` output — actual answers are generated dynamically from the indexed knowledge base at query time.
 
-**Output**
-<img width="1535" height="864" alt="appui" src="https://github.com/user-attachments/assets/50b2f06f-b67a-41de-bbea-3cea5a8f2c3e" /> <br> <br> 
-<img width="1536" height="864" alt="Screenshot 2026-07-28 151101" src="https://github.com/user-attachments/assets/ad21f316-0281-4c10-a108-e869708527f2" /> <br> <br>
-<img width="1536" height="863" alt="WhatsApp Image 2026-07-28 at 3 11 17 PM" src="https://github.com/user-attachments/assets/859c1658-d63f-401c-b979-a09a1cfb61cf" /> <br> <br>
-<img width="1536" height="864" alt="Screenshot 2026-07-28 142019" src="https://github.com/user-attachments/assets/00e3aec8-ba60-458e-adb3-7b9f5bf65543" /> <br> <br>
-<img width="1536" height="864" alt="Screenshot 2026-07-28 142254" src="https://github.com/user-attachments/assets/d2c84190-9180-4a0a-83e5-8c9c8da5832f" /> <br> <br>
-<img width="1536" height="864" alt="Screenshot 2026-07-28 142227" src="https://github.com/user-attachments/assets/3fe709dd-1587-46ad-89fc-33fc754bbaf0" /> <br> <br>
+
 
 
 
